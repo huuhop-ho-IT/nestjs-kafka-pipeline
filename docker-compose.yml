@@ -1,0 +1,86 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  NestJS Kafka Pipeline — Docker Compose
+#
+#  Services:
+#    zookeeper  — Kafka coordination (port internal only)
+#    kafka      — Apache Kafka broker (port 9092 exposed for local tools)
+#    kafka-ui   — Web UI to inspect topics & messages (port 8080)
+#    app        — NestJS application (port 3000)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kafka-pipeline-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-pipeline-broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"   # External access (local tools, kafkacat, etc.)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Two listeners:
+      #   PLAINTEXT     → internal Docker network (kafka:29092)
+      #   PLAINTEXT_HOST → external host machine (localhost:9092)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 24
+    networks:
+      - kafka-net
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-pipeline-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - kafka-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka-pipeline-app
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_CONSUMER_GROUP_ID: order-processor-group
+    networks:
+      - kafka-net
+    restart: on-failure
+
+networks:
+  kafka-net:
+    driver: bridge

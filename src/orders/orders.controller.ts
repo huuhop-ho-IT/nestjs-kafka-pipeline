@@ -19,12 +19,7 @@ export class OrdersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Create a new order',
-    description:
-      'Creates an order and emits an event to Kafka topic `orders.created`. ' +
-      'The consumer will asynchronously process the order: PENDING → PROCESSING → COMPLETED.',
-  })
+  @ApiOperation({ summary: 'Create a new order' })
   @ApiResponse({ status: 201, description: 'Order created and emitted to Kafka.' })
   @ApiResponse({ status: 400, description: 'Validation error.' })
   async create(@Body() dto: CreateOrderDto) {
@@ -36,10 +31,7 @@ export class OrdersController {
   }
 
   @Get()
-  @ApiOperation({
-    summary: 'List all orders',
-    description: 'Returns all orders with their current processing status.',
-  })
+  @ApiOperation({ summary: 'List all orders' })
   findAll() {
     return {
       data: this.ordersService.findAll(),

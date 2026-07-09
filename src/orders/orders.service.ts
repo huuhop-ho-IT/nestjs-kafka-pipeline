@@ -35,7 +35,6 @@ export class OrdersService implements OnModuleInit {
     this.ordersRepository.save(order);
     this.logger.log(`Order created: ${order.id} — emitting to Kafka...`);
 
-    // Fire-and-forget: emit the event to Kafka topic
     this.kafkaClient.emit(KAFKA_TOPICS.ORDERS_CREATED, {
       key: order.id,
       value: JSON.stringify(order),

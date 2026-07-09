@@ -1,11 +1,3 @@
-/**
- * Integration test for the Orders HTTP API.
- *
- * Spins up a real NestJS HTTP server with the full OrdersController,
- * OrdersService, and OrdersRepository wired together.
- * Kafka is replaced by a lightweight mock so the test runs without
- * a running broker.
- */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
@@ -47,13 +39,9 @@ describe('Orders API (integration)', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    // Clear in-memory store between tests to keep each test isolated
     (repository as any).orders.clear();
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // POST /orders
-  // ──────────────────────────────────────────────────────────────
   describe('POST /orders', () => {
     const validBody = {
       product: 'MacBook Pro 16"',
@@ -113,9 +101,6 @@ describe('Orders API (integration)', () => {
     });
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // GET /orders
-  // ──────────────────────────────────────────────────────────────
   describe('GET /orders', () => {
     it('should return an empty list before any orders are created', async () => {
       const res = await request(app.getHttpServer()).get('/orders').expect(200);
@@ -133,9 +118,6 @@ describe('Orders API (integration)', () => {
     });
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // GET /orders/stats
-  // ──────────────────────────────────────────────────────────────
   describe('GET /orders/stats', () => {
     it('should return stats with correct shape', async () => {
       const res = await request(app.getHttpServer()).get('/orders/stats').expect(200);
@@ -146,9 +128,6 @@ describe('Orders API (integration)', () => {
     });
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // GET /orders/:id
-  // ──────────────────────────────────────────────────────────────
   describe('GET /orders/:id', () => {
     it('should return 200 and the order when it exists', async () => {
       const createRes = await request(app.getHttpServer())
@@ -166,9 +145,6 @@ describe('Orders API (integration)', () => {
     });
   });
 
-  // ──────────────────────────────────────────────────────────────
-  // Full lifecycle: create → verify in list → verify by id
-  // ──────────────────────────────────────────────────────────────
   describe('Full order lifecycle', () => {
     it('should reflect a newly created order in both list and detail endpoints', async () => {
       const body = { product: 'Apple Watch Ultra', quantity: 1, price: 799.0, customerId: 'cust-lifecycle' };

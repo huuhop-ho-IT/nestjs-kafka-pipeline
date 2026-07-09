@@ -7,7 +7,6 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ─── Kafka Microservice (Consumer) ───────────────────────────────────────────
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,
     options: {
@@ -26,7 +25,6 @@ async function bootstrap() {
     },
   });
 
-  // ─── HTTP Server ──────────────────────────────────────────────────────────────
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -36,20 +34,15 @@ async function bootstrap() {
     }),
   );
 
-  // ─── Swagger Documentation ────────────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
     .setTitle('NestJS Kafka Pipeline')
-    .setDescription(
-      'Demo: Asynchronous order processing pipeline using NestJS + Apache Kafka.\n\n' +
-      '**Flow:** POST /orders → Kafka topic `orders.created` → Consumer processes → COMPLETED',
-    )
+    .setDescription('Order processing pipeline with NestJS and Kafka.')
     .setVersion('1.0')
     .addTag('Orders', 'Order management and Kafka pipeline endpoints')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  // ─── Start ────────────────────────────────────────────────────────────────────
   await app.startAllMicroservices();
 
   const port = process.env.PORT || 3000;
@@ -58,9 +51,9 @@ async function bootstrap() {
   console.log('\n╔══════════════════════════════════════════════╗');
   console.log('║       NestJS Kafka Pipeline — RUNNING        ║');
   console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║  HTTP API  → http://localhost:${port}/api       ║`);
-  console.log(`║  Swagger   → http://localhost:${port}/api/docs  ║`);
-  console.log(`║  Kafka UI  → http://localhost:8080            ║`);
+  console.log(`║  API     → http://localhost:${port}/api       ║`);
+  console.log(`║  Swagger → http://localhost:${port}/api/docs  ║`);
+  console.log(`║  Kafka UI→ http://localhost:8080            ║`);
   console.log('╚══════════════════════════════════════════════╝\n');
 }
 bootstrap();

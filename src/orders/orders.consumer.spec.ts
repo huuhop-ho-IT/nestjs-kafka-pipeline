@@ -33,7 +33,6 @@ describe('OrdersConsumer', () => {
     consumer = module.get<OrdersConsumer>(OrdersConsumer);
     jest.clearAllMocks();
 
-    // Speed up tests by replacing the real delay with an instant resolve
     jest
       .spyOn(consumer as any, 'simulateProcessing')
       .mockResolvedValue(undefined);
@@ -110,7 +109,6 @@ describe('OrdersConsumer', () => {
 
   describe('simulateProcessing (private)', () => {
     it('should resolve faster for small quantities and slower for large quantities', async () => {
-      // Restore real implementation for this test
       jest.restoreAllMocks();
 
       const small = makeOrder({ quantity: 1 });
@@ -124,7 +122,6 @@ describe('OrdersConsumer', () => {
       await (consumer as any).simulateProcessing(large);
       const elapsed2 = Date.now() - start2;
 
-      // Both are capped at 2000ms; large should be >= small
       expect(elapsed2).toBeGreaterThanOrEqual(elapsed1);
     }, 10000);
   });

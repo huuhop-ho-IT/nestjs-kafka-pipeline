@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Order, OrderStatus } from './entities/order.entity';
 
-/**
- * In-memory store for demo purposes.
- * Replace with a real database (PostgreSQL/TypeORM) in production.
- */
+// in-memory store for demo — swap with DB in prod
 @Injectable()
 export class OrdersRepository {
   private readonly orders = new Map<string, Order>();

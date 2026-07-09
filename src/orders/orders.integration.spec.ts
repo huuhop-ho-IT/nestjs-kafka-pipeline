@@ -4,12 +4,20 @@ import * as request from 'supertest';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { OrdersRepository } from './orders.repository';
+import { ProcessedEventsRepository } from './processed-events.repository';
+import { DlqService } from '../kafka/dlq.service';
 import { KAFKA_CLIENT } from '../kafka/kafka.constants';
 import { OrderStatus } from './entities/order.entity';
 
 const mockKafkaClient = {
   connect: jest.fn().mockResolvedValue(undefined),
   emit: jest.fn().mockReturnValue({ subscribe: jest.fn() }),
+};
+
+const mockDlqService = {
+  send: jest.fn().mockResolvedValue(undefined),
+  findAll: jest.fn().mockReturnValue([]),
+  count: jest.fn().mockReturnValue(0),
 };
 
 describe('Orders API (integration)', () => {
@@ -22,7 +30,9 @@ describe('Orders API (integration)', () => {
       providers: [
         OrdersService,
         OrdersRepository,
+        ProcessedEventsRepository,
         { provide: KAFKA_CLIENT, useValue: mockKafkaClient },
+        { provide: DlqService, useValue: mockDlqService },
       ],
     }).compile();
 

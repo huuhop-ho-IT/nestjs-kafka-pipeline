@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
 import { v4 as uuidv4 } from 'uuid';
-import { KAFKA_CLIENT, KAFKA_TOPICS } from '../kafka/kafka.constants';
+import { CORRELATION_ID_HEADER, KAFKA_CLIENT, KAFKA_TOPICS } from '../kafka/kafka.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrdersRepository } from './orders.repository';
@@ -20,7 +20,7 @@ export class OrdersService implements OnModuleInit {
     this.logger.log('Kafka producer connected');
   }
 
-  async createOrder(dto: CreateOrderDto): Promise<Order> {
+  async createOrder(dto: CreateOrderDto, correlationId?: string): Promise<Order> {
     const order: Order = {
       id: uuidv4(),
       product: dto.product,
@@ -33,11 +33,24 @@ export class OrdersService implements OnModuleInit {
     };
 
     this.ordersRepository.save(order);
-    this.logger.log(`Order created: ${order.id} — emitting to Kafka...`);
+
+    const cid = correlationId ?? uuidv4();
+    this.logger.log({
+      event: 'order_created',
+      orderId: order.id,
+      correlationId: cid,
+      product: order.product,
+    });
 
     this.kafkaClient.emit(KAFKA_TOPICS.ORDERS_CREATED, {
       key: order.id,
       value: JSON.stringify(order),
+      headers: {
+        [CORRELATION_ID_HEADER]: cid,
+        'x-source-service': 'order-service',
+        'x-event-timestamp': new Date().toISOString(),
+        'x-retry-count': '0',
+      },
     });
 
     return order;

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { OrdersRepository } from './orders.repository';
-import { KAFKA_CLIENT, KAFKA_TOPICS } from '../kafka/kafka.constants';
+import { CORRELATION_ID_HEADER, KAFKA_CLIENT, KAFKA_TOPICS } from '../kafka/kafka.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order, OrderStatus } from './entities/order.entity';
 
@@ -85,6 +85,21 @@ describe('OrdersService', () => {
       const emitCall = mockKafkaClient.emit.mock.calls[0];
       const message = emitCall[1];
       expect(() => JSON.parse(message.value)).not.toThrow();
+    });
+
+    it('should include correlation ID in Kafka message headers', async () => {
+      await service.createOrder(dto, 'my-corr-id');
+      const emitCall = mockKafkaClient.emit.mock.calls[0];
+      const headers = emitCall[1].headers;
+      expect(headers[CORRELATION_ID_HEADER]).toBe('my-corr-id');
+    });
+
+    it('should generate a correlation ID when none is provided', async () => {
+      await service.createOrder(dto);
+      const emitCall = mockKafkaClient.emit.mock.calls[0];
+      const headers = emitCall[1].headers;
+      expect(headers[CORRELATION_ID_HEADER]).toBeDefined();
+      expect(typeof headers[CORRELATION_ID_HEADER]).toBe('string');
     });
   });
 

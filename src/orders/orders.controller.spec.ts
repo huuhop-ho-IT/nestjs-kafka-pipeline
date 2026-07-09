@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { DlqService } from '../kafka/dlq.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order, OrderStatus } from './entities/order.entity';
 
@@ -24,13 +25,21 @@ const mockOrdersService = {
   getStats: jest.fn(),
 };
 
+const mockDlqService = {
+  findAll: jest.fn().mockReturnValue([]),
+  count: jest.fn().mockReturnValue(0),
+};
+
 describe('OrdersController', () => {
   let controller: OrdersController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OrdersController],
-      providers: [{ provide: OrdersService, useValue: mockOrdersService }],
+      providers: [
+        { provide: OrdersService, useValue: mockOrdersService },
+        { provide: DlqService, useValue: mockDlqService },
+      ],
     }).compile();
 
     controller = module.get<OrdersController>(OrdersController);
@@ -58,7 +67,14 @@ describe('OrdersController', () => {
     it('should call ordersService.createOrder with the DTO', async () => {
       mockOrdersService.createOrder.mockResolvedValue(makeOrder());
       await controller.create(dto);
-      expect(mockOrdersService.createOrder).toHaveBeenCalledWith(dto);
+      expect(mockOrdersService.createOrder).toHaveBeenCalledWith(dto, undefined);
+    });
+
+    it('should pass correlationId from request header to service', async () => {
+      mockOrdersService.createOrder.mockResolvedValue(makeOrder());
+      const mockReq = { headers: { 'x-correlation-id': 'test-corr-id' } } as any;
+      await controller.create(dto, mockReq);
+      expect(mockOrdersService.createOrder).toHaveBeenCalledWith(dto, 'test-corr-id');
     });
   });
 
@@ -67,12 +83,7 @@ describe('OrdersController', () => {
       const orders = [makeOrder(), makeOrder({ id: 'order-2' })];
       const stats = {
         total: 2,
-        byStatus: {
-          PENDING: 2,
-          PROCESSING: 0,
-          COMPLETED: 0,
-          FAILED: 0,
-        },
+        byStatus: { PENDING: 2, PROCESSING: 0, COMPLETED: 0, FAILED: 0 },
       };
       mockOrdersService.findAll.mockReturnValue(orders);
       mockOrdersService.getStats.mockReturnValue(stats);
@@ -89,6 +100,21 @@ describe('OrdersController', () => {
       const stats = { total: 5, byStatus: { PENDING: 1, PROCESSING: 1, COMPLETED: 2, FAILED: 1 } };
       mockOrdersService.getStats.mockReturnValue(stats);
       expect(controller.getStats()).toEqual(stats);
+    });
+  });
+
+  describe('GET /orders/dlq — getDlq', () => {
+    it('should return dead-lettered orders from DlqService', () => {
+      const dlqEntries = [
+        { id: 'dlq-1', orderId: 'order-1', error: 'timeout', retryCount: 3, failedAt: new Date().toISOString() },
+      ];
+      mockDlqService.findAll.mockReturnValue(dlqEntries);
+      mockDlqService.count.mockReturnValue(1);
+
+      const result = controller.getDlq();
+
+      expect(result.data).toEqual(dlqEntries);
+      expect(result.total).toBe(1);
     });
   });
 
